@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Бюро знахідок</title>
+    <link rel="stylesheet" href="extra.css">
+     <div class="header">
+      <img src="logo/Helpers.png" alt="Helpers" class="logo">
+      <div class="special-button" onclick="redirectToPage()">Повернення на головну</div>
+      <div class="slogan">Допоможемо усім знайти своє</div>
+    </div>
+</head>
+<body>
+<h2>Усі категорії</h2>
+<table id="all_categories_table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Категорії</th>
+        <th>Дії</th>
+    </tr>
+    </thead>
+    <tbody id="categories_table_body"></tbody>
+</table>
+
+<h2>Cтворити нову категорію</h2>
+<form id="create_category_form">
+    <label for="category_name">Категорія:</label>
+    <input type="text" id="category_name" name="category">
+    <input type="submit" value="Створити категорію">
+</form>
+
+
+<h2>Відділи</h2>
+<table id="all_locations_table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Країна</th>
+        <th>Місто</th>
+        <th>Вулиця</th>
+        <th>Відділ</th>
+        <th>Дії</th>
+    </tr>
+    </thead>
+    <tbody id="locations_table_body"></tbody>
+</table>
+
+<h2>Додати новий відділ</h2>
+<form id="create_location_form">
+    <label for="location_country">Країна:</label>
+    <input type="text" id="location_country" name="country"><br>
+    <label for="location_city">Місто:</label>
+    <input type="text" id="location_city" name="city"><br>
+    <label for="location_street">Вулиця:</label>
+    <input type="text" id="location_street" name="street"><br>
+    <label for="location_department">Відділ:</label>
+    <input type="text" id="location_department" name="department"><br>
+    <input type="submit" value="Додати відділ">
+</form>
+
+
+<h2>Загублені речі</h2>
+<table id="all_finds_table">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Назва речі</th>
+        <th>Короткий опис</th>
+        <th>Фото</th>
+        <th>Де була знайдена річ</th>
+        <th>Категорія</th>
+        <th>Дата знаходження</th>
+        <th>Відділ</th>
+        <th>Дії</th>
+    </tr>
+    </thead>
+    <tbody id="finds_table_body"></tbody>
+</table>
+
+<h2>Додати загублену річ</h2>
+<form id="create_find_form" enctype="multipart/form-data">
+    <label for="create_name">Назва речі:</label>
+    <input type="text" id="create_name" name="name"><br>
+    <label for="create_description">Короткий опис:</label>
+    <textarea id="create_description" name="description"></textarea><br>
+    <label for="create_photo">Фото:</label>
+    <input type="file" id="create_photo" name="photo"><br>
+    <label for="create_whereWasFound">Де була знайдена річ:</label>
+    <input type="text" id="create_whereWasFound" name="whereWasFound"><br>
+    <label for="create_category">Категорія:</label>
+    <select id="create_category"></select><br>
+    <label for="create_dateOfFinding">Дата знаходження:</label>
+    <input type="date" id="create_dateOfFinding" name="dateOfFinding"><br>
+    <label for="create_location">Знаходиться у відділу:</label>
+    <select id="create_location"></select><br>
+    <input type="submit" value=" Додати річ">
+</form>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+<script>
+    const api = axios.create({ baseURL: 'http://localhost:5000/lostAndFound' });
+
+    let categories = [];
+    let locations = [];
+
+
+    const allCategoriesTableBody = document.querySelector('#all_categories_table tbody');
+    const createCategoryForm = document.querySelector('#create_category_form');
+    const createCategorySelect = document.querySelector('#create_category');
+    const addCategoryRow = (category) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${category._id}</td>
+            <td contenteditable="false">${category.category}</td>
+            <td>
+                <button onclick="editCategory('${category._id}', this)">Редагувати</button>
+                <button onclick="deleteCategory('${category._id}')">Видалити</button>
+            </td>
+        `;
+        allCategoriesTableBody.appendChild(row);
+    };
+
+    const getAllCategories = () => {
+        return api.get('/categories')
+            .then(function (response) {
+                allCategoriesTableBody.innerHTML = '';
+                createCategorySelect.innerHTML = '';
+                categories = response.data;
+                categories.forEach(category => {
+                    addCategoryRow(category);
+                    const option = document.createElement('option');
+                    option.value = category._id;
+                    option.textContent = category.category;
+                    createCategorySelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching categories:', error);
+            });
+    };
+
+    createCategoryForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const category = document.querySelector('#category_name').value;
+
+        api.post('/categories', { category })
+            .then(() => {
+                alert('Category created successfully!');
+                getAllCategories();
+            })
+            .catch(error => {
+                console.error('Error creating category:', error.response.data);
+            });
+    });
+
+    const editCategory = (id, button) => {
+        const row = button.parentElement.parentElement;
+        const cells = row.querySelectorAll('td');
+        const isEditing = cells[1].isContentEditable;
+        if (isEditing) {
+            const updatedCategory = cells[1].textContent;
+            api.put(`/categories/${id}`, { category: updatedCategory })
+                .then(() => {
+                    alert('Category updated successfully!');
+                    getAllCategories();
+                })
+                .catch(error => {
+                    console.error('Error updating category:', error);
+                });
+        } else {
+            cells[1].contentEditable = true;
+            button.textContent = 'Зберегти';
+        }
+    };
+
+    const deleteCategory = (id) => {
+        api.delete(`/categories/${id}`)
+            .then(() => {
+                alert('Category deleted successfully!');
+                getAllCategories();
+            })
+            .catch(error => {
+                console.error('Error deleting category:', error);
+            });
+    };
+
+
+    const allLocationsTableBody = document.querySelector('#all_locations_table tbody');
+    const createLocationForm = document.querySelector('#create_location_form');
+    const createLocationSelect = document.querySelector('#create_location');
+    const addLocationRow = (location) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${location._id}</td>
+            <td contenteditable="false">${location.country}</td>
+            <td contenteditable="false">${location.city}</td>
+            <td contenteditable="false">${location.street}</td>
+            <td contenteditable="false">${location.department}</td>
+            <td>
+                <button onclick="editLocation('${location._id}', this)">Редагувати</button>
+                <button onclick="deleteLocation('${location._id}')">Видалити</button>
+            </td>
+        `;
+        allLocationsTableBody.appendChild(row);
+    };
+
+   const getAllLocations = () => {
+        return api.get('/locations')
+            .then(function (response) {
+                allLocationsTableBody.innerHTML = '';
+                createLocationSelect.innerHTML = '';
+                locations = response.data;
+                locations.forEach(location => {
+                    addLocationRow(location);
+                    const option = document.createElement('option');
+                    option.value = location._id;
+                    option.textContent = `${location.country}, ${location.city}, ${location.street}, ${location.department}`;
+                    createLocationSelect.appendChild(option);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching locations:', error);
+            });
+    };
+   createLocationForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const country = document.querySelector('#location_country').value;
+        const city = document.querySelector('#location_city').value;
+        const street = document.querySelector('#location_street').value;
+        const department = document.querySelector('#location_department').value;
+
+        api.post('/locations', {
+            country,
+            city,
+            street,
+            department
+        })
+            .then(() => {
+                alert('Location created successfully!');
+                getAllLocations();
+            })
+            .catch(error => {
+                console.error('Error creating location:', error.response.data);
+            });
+   });
+   const editLocation = (id, button) => {
+        const row = button.parentElement.parentElement;
+        const cells = row.querySelectorAll('td');
+        const isEditing = cells[1].isContentEditable;
+        if (isEditing) {
+            const updatedLocation = {
+                country: cells[1].textContent,
+                city: cells[2].textContent,
+                street: cells[3].textContent,
+                department: cells[4].textContent,
+            };
+            api.put(`/locations/${id}`, updatedLocation)
+                .then(() => {
+                    alert('Location updated successfully!');
+                    getAllLocations();
+                })
+                .catch(error => {
+                    console.error('Error updating location:', error);
+                });
+        } else {
+            cells.forEach(cell => cell.contentEditable = true);
+            button.textContent = 'Зберегти';
+        }
+    };
+
+    const deleteLocation = (id) => {
+        api.delete(`/locations/${id}`)
+            .then(() => {
+                alert('Location deleted successfully!');
+                getAllLocations();
+            })
+            .catch(error => {
+                console.error('Error deleting location:', error);
+            });
+    };
+
+    const allItemsTableBody = document.querySelector('#all_finds_table tbody');
+    const createItemForm = document.querySelector('#create_find_form');
+    const addRow = (item) => {
+        const category = categories.find(cat => cat._id === item.id_category);
+        const location = locations.find(loc => loc._id === item.id_location);
+        const categoryName = category ? category.category : 'Unknown Category';
+        const locationName = location ? `${location.country}, ${location.city}, ${location.street}, ${location.department}` : 'Unknown Location';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+                <td>${item._id}</td>
+                <td contenteditable="false">${item.name}</td>
+                <td contenteditable="false">${item.description}</td>
+                <td contenteditable="false"><img src="uploads/${item.photo}" alt="Item Photo" style="max-width: 100px;"></td>
+                <td contenteditable="false">${item.whereWasFound}</td>
+                <td>${categoryName}</td>
+                <td contenteditable="false">${item.dateOfFinding}</td>
+                <td>${locationName}</td>
+                <td>
+                    <button onclick="editItem('${item._id}', this)">Редагувати</button>
+                    <button onclick="deleteItem('${item._id}')">Видалити</button>
+                </td>
+            `;
+        allItemsTableBody.appendChild(row);
+    };
+
+    const getAllItems = () => {
+        api.get('/')
+            .then(response => {
+                const allItemsTableBody = document.querySelector('#finds_table_body');
+                allItemsTableBody.innerHTML = '';
+                response.data.forEach(item => {
+                    addRow(item);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching items:', error);
+            });
+    };
+
+    createItemForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.querySelector('#create_name').value;
+        const description = document.querySelector('#create_description').value;
+        const photo = document.querySelector('#create_photo').files[0];
+        const whereWasFound = document.querySelector('#create_whereWasFound').value;
+        const id_category = createCategorySelect.value;
+        const dateOfFinding = document.querySelector('#create_dateOfFinding').value;
+        const id_location = createLocationSelect.value;
+
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('description', description);
+        formData.append('photo', photo);
+        formData.append('whereWasFound', whereWasFound);
+        formData.append('id_category', id_category);
+        formData.append('dateOfFinding', dateOfFinding);
+        formData.append('id_location', id_location);
+
+        api.post('/finds', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        })
+            .then(() => {
+                alert('Item created successfully!');
+                getAllItems();
+            })
+            .catch(error => {
+                console.error('Error creating item:', error);
+            });
+    });
+
+
+    const editItem = (id, button) => {
+        const row = button.parentElement.parentElement;
+        const cells = row.querySelectorAll('td');
+        const isEditing = cells[1].isContentEditable;
+        if (isEditing) {
+            const updatedItem = {
+                name: cells[1].textContent,
+                description: cells[2].textContent,
+                whereWasFound: cells[4].textContent,
+                dateOfFinding: formatDate(cells[6].querySelector('input[type="date"]').value),
+                id_category: cells[5].querySelector('select').value,
+                id_location: cells[7].querySelector('select').value,
+            };
+
+
+            const photoInput = document.querySelector('#edit_photo');
+            if (photoInput.files.length > 0) {
+                updatedItem.photo = photoInput.files[0];
+            }
+
+            api.put(`/finds/${id}`, updatedItem)
+                .then(() => {
+                    alert('Item updated successfully!');
+                    getAllItems();
+                })
+                .catch(error => {
+                    console.error('Error updating item:', error);
+                });
+        } else {
+            cells.forEach(cell => cell.contentEditable = true);
+            button.textContent = 'Зберегти';
+
+
+            const currentCategory = cells[5].textContent;
+            const currentLocation = cells[7].textContent;
+
+
+            const categorySelect = document.createElement('select');
+            categorySelect.id = 'edit_category';
+            createCategoryOptions(categorySelect);
+            cells[5].textContent = '';
+            cells[5].appendChild(categorySelect);
+
+            const locationSelect = document.createElement('select');
+            locationSelect.id = 'edit_location';
+            createLocationOptions(locationSelect);
+            cells[7].textContent = '';
+            cells[7].appendChild(locationSelect);
+
+
+            const editCategorySelect = document.querySelector('#edit_category');
+            const editLocationSelect = document.querySelector('#edit_location');
+            editCategorySelect.value = categories.find(cat => cat.category === currentCategory)._id;
+
+
+            const locationOption = locations.find(loc => `${loc.country}, ${loc.city}, ${loc.street}, ${loc.department}` === currentLocation);
+            if (locationOption) {
+                editLocationSelect.value = locationOption._id;
+            }
+
+
+            const uploadButton = document.createElement('button');
+            uploadButton.textContent = 'Завантажити фото';
+            uploadButton.onclick = () => uploadPhoto(id);
+            cells[3].appendChild(uploadButton);
+
+
+            const photoInput = document.createElement('input');
+            photoInput.type = 'file';
+            photoInput.accept = 'image/*';
+            photoInput.id = 'edit_photo';
+            photoInput.style.display = 'none';
+            cells[3].appendChild(photoInput);
+
+
+            const currentDate = formatDate(cells[6].textContent);
+            const editDateInput = document.createElement('input');
+            editDateInput.type = 'date';
+            editDateInput.id = 'edit_dateOfFinding';
+            editDateInput.name = 'dateOfFinding';
+            editDateInput.value = currentDate;
+            cells[6].textContent = '';
+            cells[6].appendChild(editDateInput);
+        }
+    };
+
+
+    const formatDate = (dateString) => {
+        const parts = dateString.split('.');
+        if (parts.length === 3) {
+            const [day, month, year] = parts;
+            return `${year}-${month}-${day}`;
+        }
+        return dateString;
+    };
+
+
+    const createCategoryOptions = (selectElement) => {
+        categories.forEach(category => {
+            const option = document.createElement('option');
+            option.value = category._id;
+            option.textContent = category.category;
+            selectElement.appendChild(option);
+        });
+    };
+
+    const createLocationOptions = (selectElement) => {
+        locations.forEach(location => {
+            const option = document.createElement('option');
+            option.value = location._id;
+            option.textContent = `${location.country}, ${location.city}, ${location.street}, ${location.department}`;
+            selectElement.appendChild(option);
+        });
+    };
+
+    const uploadPhoto = (id) => {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            const formData = new FormData();
+            formData.append('photo', file);
+            api.put(`/finds/${id}`, formData, {
+                headers: {
+                    'Content-Type': 'multipart/form-data'
+                }
+            })
+                .then(() => {
+                    alert('Photo uploaded successfully!');
+                    getAllItems();
+                })
+                .catch(error => {
+                    console.error('Error uploading photo:', error);
+                });
+        });
+        fileInput.click();
+    };
+
+    const deleteItem = (id) => {
+        api.delete(`/finds/${id}`)
+            .then(() => {
+                alert('Item deleted successfully!');
+                getAllItems();
+            })
+            .catch(error => {
+                console.error('Error deleting item:', error);
+            });
+    };
+
+    Promise.all([getAllCategories(), getAllLocations()]).then(() => {
+        getAllItems();
+    });
+     function redirectToPage() {
+      window.location.href = 'Main.html';
+    }
+</script>
+</body>
+</html>

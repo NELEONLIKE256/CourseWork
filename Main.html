@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Бюро знахідок</title>
+  <link rel="stylesheet" href="main.css">
+</head>
+<body>
+  <header>
+    <div class="header">
+      <img src="logo/Helpers.png" alt="Helpers" class="logo">
+      <div class="special-button" onclick="redirectToPage()">Робота з БД</div>
+      <div class="slogan">Допоможемо усім знайти своє</div>
+    </div>
+  </header>
+
+<form id="search_item_form">
+  <div class="dropdowns">
+    <div class="input-row">
+    <label for="search_name">Назва речі:</label>
+    <input type="text" id="search_name" name="name">
+    </div>
+    <div class="input-row">
+    <label for="search_country_city">Країна та місто:</label>
+    <select id="search_country_city" name="country_city"></select>
+    </div>
+    <div class="input-row">
+    <label for="search_category">Категорії:</label>
+    <select id="search_category" name="category"></select>
+    <input type="submit" value="Пошук">
+    </div>
+  </div>
+</form>
+<br>
+ <br>
+  <br>
+<table id="search_results_table">
+    <thead>
+    <tr>
+        <th>Назва речі</th>
+        <th>Короткий опис</th>
+        <th>Фото</th>
+        <th>Де була знайдена річ</th>
+        <th>Категорія</th>
+        <th>Дата знаходження</th>
+        <th>Відділ</th>
+    </tr>
+    </thead>
+    <tbody id="search_results_table_body"></tbody>
+</table>
+<script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+  <script>
+    let categories = [];
+    let locations = [];
+    const api = axios.create({ baseURL: 'http://localhost:5000/lostAndFound' });
+     const searchItemForm = document.querySelector('#search_item_form');
+    const searchResultsTableBody = document.querySelector('#search_results_table_body');
+
+    const populateDropdowns = async () => {
+        await getAllSearchCategories();
+        await getAllSearchLocations();
+    };
+
+    const getAllSearchCategories = async () => {
+        try {
+            const response = await api.get('/categories');
+            categories = response.data;
+            const searchCategorySelect = document.querySelector('#search_category');
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category._id;
+                option.textContent = category.category;
+                searchCategorySelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching categories:', error);
+        }
+    };
+
+    const getAllSearchLocations = async () => {
+        try {
+            const response = await api.get('/locations');
+            locations = response.data;
+            const searchCountryCitySelect = document.querySelector('#search_country_city');
+            locations.forEach(location => {
+                const option = document.createElement('option');
+                option.value = location._id;
+                option.textContent = `${location.country}, ${location.city}`;
+                searchCountryCitySelect.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Error fetching locations:', error);
+        }
+    };
+
+    const searchItems = async (formData) => {
+        try {
+            const response = await api.get(`/`, { params: formData });
+            displaySearchResults(response.data);
+        } catch (error) {
+            console.error('Error searching items:', error);
+        }
+    };
+
+    const displaySearchResults = (items) => {
+        searchResultsTableBody.innerHTML = '';
+        items.forEach(item => {
+            const category = categories.find(cat => cat._id === item.id_category);
+            const location = locations.find(loc => loc._id === item.id_location);
+            const categoryName = category ? category.category : 'Unknown Category';
+            const locationName = location ? `${location.country}, ${location.city}, ${location.street}, ${location.department}` : 'Unknown Location';
+            const row = document.createElement('tr');
+            row.innerHTML = `
+            <td>${item.name}</td>
+            <td>${item.description}</td>
+            <td><img src="uploads/${item.photo}" alt="Item Photo" style="max-width: 100px;"></td>
+            <td>${item.whereWasFound}</td>
+            <td>${categoryName}</td>
+            <td>${item.dateOfFinding}</td>
+            <td>${locationName}</td>
+        `;
+            searchResultsTableBody.appendChild(row);
+        });
+    };
+
+    const searchCategorySelect = document.querySelector('#search_category');
+    const searchLocationSelect = document.querySelector('#search_country_city');
+    searchItemForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.querySelector('#search_name').value;
+        const id_category = searchCategorySelect.value;
+        const id_location = searchLocationSelect.value;
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('id_category', id_category);
+        formData.append('id_location', id_location);
+        searchItems(Object.fromEntries(formData));
+    });
+
+    populateDropdowns().then(() => {
+        console.log('Dropdowns populated successfully!');
+    });
+
+
+    function redirectToPage() {
+      window.location.href = 'Edit.html';
+    }
+
+  </script>
+</body>
+</html>
